@@ -63,8 +63,7 @@ set(ARROW_HDF_HAVE_HDF5 FALSE)
 if(Arrow_FOUND AND HDF5_FOUND)
   set(ARROW_HDF_HAVE_HDF5 TRUE)
   add_library(arrow_hdf SHARED
-    arrow_hdf/Writer.cpp
-    arrow_hdf/Reader.cpp
+    arrow_hdf/Hdf5File.cpp
   )
   target_link_libraries(arrow_hdf
     PUBLIC

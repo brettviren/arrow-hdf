@@ -17,9 +17,12 @@ neutral `Address` type). It does **not** depend on Phlex or Wire-Cell Toolkit.
 - A file-hierarchy descriptor (`arrow_hdf/Hierarchy.h`): the ordered layer names
   and the numeric-sorted cell tree with per-cell product locations, built from
   the addresses found in a file. Consumed by the Phlex read side.
-- *(pending HDF5)* `write(arrow::Table, Address)`, `read(Address) → arrow::Table`,
-  and a file `scan() → Hierarchy`, with the schema → HDF5 layout convention in
-  `docs/layout.md`.
+- `Hdf5File` (`arrow_hdf/Hdf5File.h`): `write(arrow::Table, Address)`,
+  `read(Address) → arrow::Table`, and a file `scan() → Hierarchy`, implemented
+  with the raw HDF5 C API. Per-column typed datasets (rectangular where the
+  schema allows — e.g. a dense frame's charge becomes a 2-D float dataset), with
+  the exact `arrow::Schema` stored as an IPC blob for faithful reconstruction.
+  See `docs/layout.md` for the schema → HDF5 convention.
 
 ## Layout
 
@@ -42,11 +45,16 @@ cmake --build builds/arrow-hdf
 ctest --test-dir builds/arrow-hdf
 ```
 
-When HDF5 is not yet in the Spack view, the configure step builds and tests the
-pure core only and prints a status note; the HDF5 serializer and its round-trip
-tests are skipped automatically.
+When HDF5 is not in the Spack view, the configure step builds and tests the pure
+core only and prints a status note; the HDF5 serializer and its round-trip tests
+are skipped automatically.
 
-## Dependency status
+## Tests
 
-HDF5 must be added to the Spack `wcph` environment (and the `local/` view
-regenerated) before the HDF5 serializer can build — see the project notes.
+- `address`, `hierarchy` — pure core (always run).
+- `roundtrip` — Arrow → HDF5 → Arrow equality (metadata-checked) for a flat
+  table, a `list` column, a nested `list<struct>`, and a dense `fixed_size_list`
+  table, plus `scan()`. (Runs when HDF5 is present.)
+
+In-place check: a dense frame's charge round-trips to a 2-D `H5T_IEEE_F32LE`
+dataset (NumPy/`h5py`-loadable); verified with `h5dump`.
