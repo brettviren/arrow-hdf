@@ -26,13 +26,13 @@ product) is percent-escaped: characters outside `[A-Za-z0-9._-]` (including `/`,
 NUL, and `%`) become `%XX`. This is reversible (`path_unescape`) and forbids the
 HDF5 link separator and NUL. Cell numbers render as plain decimal (always safe).
 
-**Numeric ordering.** Cell group names are the decimal number. HDF5/`h5py`
+**Numeric ordering.** Cell group names are the plain decimal number. HDF5/`h5py`
 iterate links lexicographically by default, so `"12"` sorts before `"3"`. We do
-not rely on link order for correctness: the file `scan()` parses cell numbers
-and **sorts them numerically** when building the `Hierarchy`, so the Phlex read
-side always sees numeric order. (Zero-padding was rejected — it needs an
-arbitrary fixed width for unbounded run/event numbers.) The numeric cell value
-is also stored as an attribute on the cell group for robustness.
+not rely on link order for correctness: `scan()` recovers each cell number by
+parsing the group's link name and `Hierarchy::from_addresses` **sorts
+numerically**, so the Phlex read side always sees numeric order. (Zero-padding
+was rejected — it needs an arbitrary fixed width for unbounded run/event
+numbers.)
 
 ## 2. The grouping layer (group-per-cell vs rows)
 
@@ -85,18 +85,24 @@ originating type tag travels in the schema metadata (§6). No interpretation is
 attempted; the bytes are stored verbatim. Alignment for in-place typed reads is
 the caller's concern (see the `wire-cell-arrow` tensor alignment contract).
 
-## 6. Metadata → attributes
+## 6. Metadata and exact type reconstruction
 
-- Schema-level metadata (e.g. `arrow.schema = "wc.frame"`, `wc.frame.ident`,
-  `wc.frame.time`) → attributes on the `product` group.
-- Field-level metadata → attributes on the corresponding dataset.
-- The Arrow type of each column (its `ToString()` / a compact type tag) is
-  stored as a dataset attribute so the reader can reconstruct the exact Arrow
-  type, including the distinctions HDF5 cannot represent (e.g. `list` vs
-  `fixed_size_list`, signedness, dictionary).
+Exact round-trip and in-place readability are served by two complementary
+stores in the `product` group:
 
-A reader keys off `arrow.schema` and the per-dataset type tags to rebuild the
-`arrow::Table` exactly.
+- **Faithful types.** The complete `arrow::Schema` (IPC-serialized) is stored as
+  a `uint8` dataset `__arrow_schema__`. The reader deserializes it to recover
+  every field's exact Arrow type — including the distinctions HDF5 cannot
+  represent (`list` vs `fixed_size_list`, signedness, field nullability,
+  field/schema metadata) — then reads each column's dataset(s) per that type.
+  `arrow_num_rows` is stored as a group attribute.
+- **In-place readability.** Schema-level metadata (e.g. `arrow.schema =
+  "wc.frame"`, `wc.frame.ident`, `wc.frame.tbin`) is additionally mirrored as
+  string attributes on the `product` group, so a plain `h5py`/`h5dump` user sees
+  the semantic tags without parsing the IPC blob.
+
+(Per-dataset Arrow-type attributes are a possible future in-place aid; they are
+not needed for round-trip since `__arrow_schema__` is authoritative.)
 
 ## 7. Concurrency contract
 
