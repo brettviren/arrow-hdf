@@ -1,0 +1,43 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "description": "Shared settings",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD":          { "type": "STRING", "value": "20" },
+        "CMAKE_CXX_STANDARD_REQUIRED": { "type": "BOOL",   "value": "ON" },
+        "CMAKE_CXX_EXTENSIONS":        { "type": "BOOL",   "value": "OFF" },
+
+        "_comment_compiler": "Pin the Spack GCC 15 toolchain via $CC/$CXX (set in the umbrella .envrc). The Debian system GCC 12 is fine for the pure core, but Arrow in the Spack view is GCC 15; use one compiler throughout. gcc@15 is not in the view, so $env reads it from the store. See wire-cell-arrow for rationale.",
+        "CMAKE_C_COMPILER":   { "type": "FILEPATH", "value": "$env{CC}" },
+        "CMAKE_CXX_COMPILER": { "type": "FILEPATH", "value": "$env{CXX}" },
+
+        "_comment_prefix": "The Spack view provides Arrow (and HDF5, once added).",
+        "CMAKE_PREFIX_PATH": { "type": "PATH", "value": "/devel/ddm/local" }
+      }
+    },
+    {
+      "name": "default",
+      "displayName": "Default (RelWithDebInfo)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": { "type": "STRING", "value": "RelWithDebInfo" } }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": { "type": "STRING", "value": "Debug" } }
+    }
+  ],
+  "buildPresets": [
+    { "name": "default", "configurePreset": "default" },
+    { "name": "debug",   "configurePreset": "debug" }
+  ],
+  "testPresets": [
+    { "name": "default", "configurePreset": "default", "output": { "outputOnFailure": true } },
+    { "name": "debug",   "configurePreset": "debug",   "output": { "outputOnFailure": true } }
+  ]
+}
