@@ -78,11 +78,4 @@ Address::Address(std::string path) : m_path(std::move(path))
     }
 }
 
-std::string Address::group_path() const
-{
-    const std::size_t slash = m_path.find_last_of('/');
-    if (slash == 0 || slash == std::string::npos) return "/";
-    return m_path.substr(0, slash);
-}
-
 }  // namespace arrow_hdf

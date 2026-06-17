@@ -40,10 +40,6 @@ class Address {
     /// The full '/'-delimited path.
     const std::string& path() const { return m_path; }
 
-    /// The parent group path: path() with its last component removed
-    /// ("/a/b/c" -> "/a/b", "/a" -> "/", "/" -> "/").
-    std::string group_path() const;
-
     friend bool operator==(const Address&, const Address&) = default;
 
   private:

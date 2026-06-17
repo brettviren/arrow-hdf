@@ -41,19 +41,16 @@ int main()
     {
         Address a(std::vector<std::string>{"run", "3", "event", "12", "sigproc", "frame"});
         check(a.path() == "/run/3/event/12/sigproc/frame", "components path: " + a.path());
-        check(a.group_path() == "/run/3/event/12/sigproc", "group_path (parent): " + a.group_path());
     }
     // empty component list -> root
     {
         Address a(std::vector<std::string>{});
         check(a.path() == "/", "empty -> root: " + a.path());
-        check(a.group_path() == "/", "root group_path: " + a.group_path());
     }
     // single component
     {
         Address a(std::vector<std::string>{"only"});
         check(a.path() == "/only", "single path");
-        check(a.group_path() == "/", "single group_path -> root");
     }
     // components needing escaping
     {
@@ -65,7 +62,6 @@ int main()
     {
         Address a(std::string("/run/3/x"));
         check(a.path() == "/run/3/x", "verbatim path");
-        check(a.group_path() == "/run/3", "verbatim group_path");
     }
     {
         Address a(std::string("a/b"));          // missing leading slash -> normalized
