@@ -658,6 +658,29 @@ arrow::Status Hdf5File::write(const Address& addr, const std::shared_ptr<arrow::
     return arrow::Status::OK();
 }
 
+arrow::Status Hdf5File::write_tables(const Address& base,
+                                     const std::map<std::string, std::shared_ptr<arrow::Table>>& tables,
+                                     const std::string& type_label)
+{
+    if (m_file < 0) return io("write_tables: file not open");
+
+    // Create the parent (aggregate) group and label it.
+    Hid lcpl(H5Pcreate(H5P_LINK_CREATE), H5Pclose);
+    H5Pset_create_intermediate_group(lcpl, 1);
+    Hid grp(H5Gcreate2(m_file, base.path().c_str(), lcpl, H5P_DEFAULT, H5P_DEFAULT), H5Gclose);
+    if (!grp.ok()) return io("create group " + base.path());
+    if (!type_label.empty()) {
+        ARROW_RETURN_NOT_OK(write_string_attr(grp, "arrow.group.type", type_label));
+    }
+
+    // Each member -> a child table group base/<name>.
+    for (const auto& [name, table] : tables) {
+        Address child(base.path() + "/" + path_escape(name));
+        ARROW_RETURN_NOT_OK(write(child, table));
+    }
+    return arrow::Status::OK();
+}
+
 arrow::Result<std::shared_ptr<arrow::Table>> Hdf5File::read(const Address& addr)
 {
     if (m_file < 0) return io("read: file not open");

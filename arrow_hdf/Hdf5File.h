@@ -13,6 +13,7 @@
 #include <arrow/api.h>
 #include <hdf5.h>
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -40,6 +41,15 @@ class Hdf5File {
 
     /// Write a table at the address's product group path.
     arrow::Status write(const Address& addr, const std::shared_ptr<arrow::Table>& table);
+
+    /// Write a named group of tables: each `tables` entry is written as a child
+    /// table group at `base`/<name>, and `type_label` (if non-empty) is stored
+    /// as an attribute on the `base` group.  Generic convenience for callers
+    /// (e.g. phlex-arrow-hdf) that persist an aggregate as one parent group of
+    /// named tables; arrow-hdf attaches no meaning to the names or the label.
+    arrow::Status write_tables(const Address& base,
+                               const std::map<std::string, std::shared_ptr<arrow::Table>>& tables,
+                               const std::string& type_label = "");
 
     /// Read the table previously written at the address.
     arrow::Result<std::shared_ptr<arrow::Table>> read(const Address& addr);

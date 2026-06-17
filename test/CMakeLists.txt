@@ -11,6 +11,11 @@ add_test(NAME hierarchy COMMAND test_hierarchy)
 
 # Arrow<->HDF5 round-trip tests — only when HDF5 is available.
 if(ARROW_HDF_HAVE_HDF5)
+  add_executable(test_write_tables test_write_tables.cpp)
+  target_link_libraries(test_write_tables PRIVATE arrow_hdf
+    Arrow::arrow_shared HDF5::HDF5 ${ARROW_HDF_RUNTIME_LIBS})
+  add_test(NAME write_tables COMMAND test_write_tables)
+
   add_executable(test_roundtrip test_roundtrip.cpp)
   target_link_libraries(test_roundtrip PRIVATE arrow_hdf
     Arrow::arrow_shared HDF5::HDF5 ${ARROW_HDF_RUNTIME_LIBS})
