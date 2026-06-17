@@ -1,4 +1,4 @@
-#include "arrow_hdf/Hdf5File.h"
+#include "arrow_hdf/Hdf5File.hpp"
 
 #include <arrow/array/util.h>
 #include <arrow/io/memory.h>

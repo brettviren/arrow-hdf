@@ -1,6 +1,6 @@
 // Unit tests for arrow_hdf::Address (generic flat path) and path escaping.
 
-#include "arrow_hdf/Address.h"
+#include "arrow_hdf/Address.hpp"
 
 #include <iostream>
 #include <stdexcept>

@@ -6,8 +6,8 @@
 // waveform).  Also exercises scan().  Tables are built directly with Arrow
 // (no WCT) to keep this package WCT-free.
 
-#include "arrow_hdf/Hdf5File.h"
-#include "arrow_hdf/Address.h"
+#include "arrow_hdf/Hdf5File.hpp"
+#include "arrow_hdf/Address.hpp"
 
 #include <arrow/api.h>
 

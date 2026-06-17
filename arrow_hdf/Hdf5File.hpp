@@ -7,8 +7,8 @@
 //
 // Layout convention: see docs/layout.md.
 
-#include "arrow_hdf/Address.h"
-#include "arrow_hdf/Hierarchy.h"
+#include "arrow_hdf/Address.hpp"
+#include "arrow_hdf/Hierarchy.hpp"
 
 #include <arrow/api.h>
 #include <hdf5.h>

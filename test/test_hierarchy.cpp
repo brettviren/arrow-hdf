@@ -1,7 +1,7 @@
 // Unit tests for arrow_hdf::Hierarchy (generic path trie).
 
-#include "arrow_hdf/Hierarchy.h"
-#include "arrow_hdf/Address.h"
+#include "arrow_hdf/Hierarchy.hpp"
+#include "arrow_hdf/Address.hpp"
 
 #include <iostream>
 #include <string>

@@ -1,6 +1,6 @@
 // Test the generic write_tables helper (a named group of tables under a base).
-#include "arrow_hdf/Hdf5File.h"
-#include "arrow_hdf/Address.h"
+#include "arrow_hdf/Hdf5File.hpp"
+#include "arrow_hdf/Address.hpp"
 
 #include <arrow/api.h>
 

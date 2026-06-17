@@ -1,4 +1,4 @@
-#include "arrow_hdf/Address.h"
+#include "arrow_hdf/Address.hpp"
 
 #include <cctype>
 #include <stdexcept>

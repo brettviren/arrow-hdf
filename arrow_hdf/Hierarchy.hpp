@@ -8,7 +8,7 @@
 // semantics (no layer/number/creator/product) — a consumer that wants such
 // structure interprets the components itself.
 
-#include "arrow_hdf/Address.h"
+#include "arrow_hdf/Address.hpp"
 
 #include <string>
 #include <vector>

@@ -107,7 +107,7 @@ if(ARROW_HDF_HAVE_HDF5)
 endif()
 install(DIRECTORY arrow_hdf/
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/arrow_hdf"
-  FILES_MATCHING PATTERN "*.h"
+  FILES_MATCHING PATTERN "*.hpp"
 )
 
 # CMake package config so downstream `find_package(arrow_hdf CONFIG)` works.

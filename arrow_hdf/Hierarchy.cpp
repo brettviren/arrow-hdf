@@ -1,4 +1,4 @@
-#include "arrow_hdf/Hierarchy.h"
+#include "arrow_hdf/Hierarchy.hpp"
 
 #include <algorithm>
 
