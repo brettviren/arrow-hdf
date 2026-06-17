@@ -1,28 +1,20 @@
 #ifndef ARROW_HDF_ADDRESS_H
 #define ARROW_HDF_ADDRESS_H
 
-// A Phlex-neutral structured address for a stored product.
+// A generic location of a stored object: a '/'-delimited path.
 //
-// An Address is a sequence of (layer_name, number) cells plus a creator name
-// and a product name.  It maps to a file path such as
-//   /run/3/event/12/<creator>/<product>
-// The cell sequence may be empty (a product stored at the job root).
+// Address is intentionally free of any domain/framework structure (no
+// run/event "cells", no creator/product split).  A client builds it either
+// from a list of path components (each component is escaped to a safe link
+// name) or from a pre-formed path string (used verbatim).  Mapping richer
+// structured concepts onto these components is the caller's responsibility.
 //
 // This header has NO dependency on Arrow, HDF5, Phlex, or WCT.
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
 namespace arrow_hdf {
-
-/// One level of the structured address: a named layer and its cell number.
-struct Cell {
-    std::string layer;     ///< layer name, e.g. "run", "event"
-    std::int64_t number;   ///< cell number within the layer (non-negative)
-
-    friend bool operator==(const Cell&, const Cell&) = default;
-};
 
 /// Percent-style escaping of a single path component.  Characters outside the
 /// portable set [A-Za-z0-9._-] (including '/', NUL, and '%' itself) are encoded
@@ -35,39 +27,27 @@ std::string path_unescape(const std::string& component);
 
 class Address {
   public:
-    Address() = default;
-    Address(std::vector<Cell> cells, std::string creator, std::string product);
+    /// Build from path components.  Each component is path_escape()d and the
+    /// results are joined with '/', yielding an absolute path
+    /// (e.g. {"run","3","x"} -> "/run/3/x").  An empty list yields "/".
+    explicit Address(const std::vector<std::string>& components);
 
-    /// Append a (layer, number) cell; returns *this for chaining.
-    Address& push(std::string layer, std::int64_t number);
+    /// Build from a pre-formed '/'-delimited path, used verbatim (the caller is
+    /// responsible for having escaped components).  A leading '/' is ensured;
+    /// an empty string becomes "/".
+    explicit Address(std::string path);
 
-    const std::vector<Cell>& cells() const { return m_cells; }
-    const std::string& creator() const { return m_creator; }
-    const std::string& product() const { return m_product; }
+    /// The full '/'-delimited path.
+    const std::string& path() const { return m_path; }
 
-    void set_creator(std::string c) { m_creator = std::move(c); }
-    void set_product(std::string p) { m_product = std::move(p); }
-
-    /// The full slash path with every component escaped:
-    ///   /esc(layer0)/num0/.../esc(creator)/esc(product)
-    /// Cell numbers are rendered as plain decimal (always path-safe).
-    std::string path() const;
-
-    /// The cell path only (no creator/product): /esc(layer0)/num0/...
-    /// Empty cell sequence yields "/" (the job root).
+    /// The parent group path: path() with its last component removed
+    /// ("/a/b/c" -> "/a/b", "/a" -> "/", "/" -> "/").
     std::string group_path() const;
-
-    /// Parse a full path() string back into an Address.  The trailing two
-    /// components are creator and product; the preceding components must form
-    /// (layer, number) pairs.  Throws std::invalid_argument if malformed.
-    static Address from_path(const std::string& path);
 
     friend bool operator==(const Address&, const Address&) = default;
 
   private:
-    std::vector<Cell> m_cells;
-    std::string m_creator;
-    std::string m_product;
+    std::string m_path;
 };
 
 }  // namespace arrow_hdf

@@ -149,10 +149,10 @@ int main()
 {
     const std::string path = "/tmp/arrow_hdf_roundtrip.h5";
 
-    Address a_tensor(std::vector<Cell>{{"run", 1}}, "sim", "tensors");
-    Address a_frame(std::vector<Cell>{{"run", 1}, {"event", 2}}, "sigproc", "frame");
-    Address a_depo(std::vector<Cell>{{"run", 1}, {"event", 2}}, "sim", "depos");
-    Address a_dense(std::vector<Cell>{{"run", 1}, {"event", 3}}, "sim", "frame_dense");
+    Address a_tensor(std::vector<std::string>{"run", "1", "sim", "tensors"});
+    Address a_frame(std::vector<std::string>{"run", "1", "event", "2", "sigproc", "frame"});
+    Address a_depo(std::vector<std::string>{"run", "1", "event", "2", "sim", "depos"});
+    Address a_dense(std::vector<std::string>{"run", "1", "event", "3", "sim", "frame_dense"});
 
     {
         auto f = Hdf5File::create(path).ValueOrDie();
@@ -166,15 +166,16 @@ int main()
     {
         auto f = Hdf5File::open_readonly(path).ValueOrDie();
         auto h = f.scan().ValueOrDie();
-        check(h.layer_names == std::vector<std::string>{"run", "event"}, "scan layer names");
-        check(h.cells.size() == 1 && h.cells[0].number == 1, "scan one run cell");
-        const auto& run1 = h.cells[0];
-        // run/1 holds the tensor product and has two event children.
-        check(run1.products.size() == 1 && run1.products[0] == ProductLoc{"sim", "tensors"},
-              "run/1 product");
-        check(run1.children.size() == 2 && run1.children[0].number == 2 && run1.children[1].number == 3,
-              "run/1 events sorted");
-        check(run1.children[0].products.size() == 2, "event 2 has two products");
+        // Generic trie: scan reports the four product paths (sorted DFS).
+        std::vector<std::string> expected{
+            "/run/1/event/2/sigproc/frame",
+            "/run/1/event/2/sim/depos",
+            "/run/1/event/3/sim/frame_dense",
+            "/run/1/sim/tensors",
+        };
+        check(h.product_paths() == expected, "scan product paths");
+        // Trie shape: one top-level "run" node with a "1" child.
+        check(h.root.children.size() == 1 && h.root.children[0].name == "run", "scan root has run");
     }
 
     if (fails) { std::cerr << fails << " failures\n"; return 1; }

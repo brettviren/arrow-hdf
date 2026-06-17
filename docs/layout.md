@@ -9,39 +9,39 @@ the schema allows it.
 
 ## 1. Addressing: groups
 
-A product is written at an `Address` = a sequence of `(layer, number)` cells
-plus `creator` and `product` names. It maps to the HDF5 group path
+A table is written at an `Address` — a generic `/`-delimited path. An `Address`
+is built either from a list of path **components** (each is escaped to a safe
+HDF5 link name and the results joined with `/`) or from a pre-formed path string
+(used verbatim). The leaf group holds the table's datasets and schema
+attributes (below); arbitrary depth is supported. `arrow-hdf` attaches **no**
+domain meaning to the components — a caller that wants structured addressing
+(e.g. `(layer, number)` cells plus `creator`/`product`, as in Phlex) builds the
+component list itself and interprets it on read.
 
-```
-/<layer0>/<number0>/<layer1>/<number1>/ … /<creator>/<product>
-```
+Example: components `{"run","3","event","12","sigproc","frame"}` →
+`/run/3/event/12/sigproc/frame`.
 
-e.g. `/run/3/event/12/sigproc/frame`. The `product` group holds the table's
-datasets and the schema attributes (below). The cell sequence may be empty (a
-product at the job root: `/<creator>/<product>`). Address depth is arbitrary —
-stores can land at any layer.
+**Component sanitization.** When building from components, each is
+percent-escaped: characters outside `[A-Za-z0-9._-]` (including `/`, NUL, and
+`%`) become `%XX`. This is reversible (`path_unescape`) and forbids the HDF5
+link separator and NUL. (Decimal integers escape to themselves.)
 
-**Component sanitization.** Every non-numeric link name (layer, creator,
-product) is percent-escaped: characters outside `[A-Za-z0-9._-]` (including `/`,
-NUL, and `%`) become `%XX`. This is reversible (`path_unescape`) and forbids the
-HDF5 link separator and NUL. Cell numbers render as plain decimal (always safe).
+**Ordering.** `scan()` returns a generic path trie whose children are sorted
+**lexicographically** by link name (so `"12"` sorts before `"2"`). `arrow-hdf`
+does not impose numeric ordering — that is a consumer concern: a structured
+reader that knows certain components are integers re-sorts numerically. (Plain
+decimal names are used as-is; zero-padding was rejected as it needs an arbitrary
+fixed width for unbounded numbers.)
 
-**Numeric ordering.** Cell group names are the plain decimal number. HDF5/`h5py`
-iterate links lexicographically by default, so `"12"` sorts before `"3"`. We do
-not rely on link order for correctness: `scan()` recovers each cell number by
-parsing the group's link name and `Hierarchy::from_addresses` **sorts
-numerically**, so the Phlex read side always sees numeric order. (Zero-padding
-was rejected — it needs an arbitrary fixed width for unbounded run/event
-numbers.)
+## 2. Group-per-table vs rows
 
-## 2. The grouping layer (group-per-cell vs rows)
-
-A group per cell mirrors the hierarchy for browsing, but at large N it bloats
-HDF5 metadata and fights columnar efficiency. The **grouping layer** — the depth
-at and below which each cell becomes its own group (vs. cells contributing rows
-to a shared dataset) — is a deliberate, configurable choice. Default:
-group-per-cell at every layer (simplest, best for browsing); a future option can
-collapse a high-cardinality inner layer into a row dimension.
+`arrow-hdf` writes one table at one address (a leaf group). A caller is free to
+choose how finely it spreads tables across the path hierarchy. A group per fine
+-grained node mirrors the hierarchy for browsing, but at large N it bloats HDF5
+metadata and fights columnar efficiency; collapsing a high-cardinality level
+into a row dimension of a shared table is more efficient. That trade-off is a
+**caller** decision (it picks the addresses and table granularity); `arrow-hdf`
+serves whatever addresses it is given.
 
 ## 3. Columns → datasets
 

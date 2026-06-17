@@ -1,50 +1,39 @@
 #ifndef ARROW_HDF_HIERARCHY_H
 #define ARROW_HDF_HIERARCHY_H
 
-// A Phlex-neutral descriptor of the addresses stored in a file: the ordered
-// layer names plus the cell tree of (layer, number), with the products located
-// at each cell.  The HDF5 scan (Reader side) produces a flat list of stored
-// Addresses; building the tree descriptor from that list is pure logic and
-// lives here so it can be tested without HDF5.  This descriptor is consumed by
-// the Phlex read side; it stays Phlex-neutral.
+// A generic descriptor of the addresses stored in a file: a trie of path
+// components.  Each node carries its link-name component and a flag marking
+// whether an object (table) is stored at that node's path.  This supports
+// Hdf5File::scan() and is intentionally free of any domain/framework cell
+// semantics (no layer/number/creator/product) — a consumer that wants such
+// structure interprets the components itself.
 
 #include "arrow_hdf/Address.h"
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
 namespace arrow_hdf {
 
-/// A product stored at a particular cell.
-struct ProductLoc {
-    std::string creator;
-    std::string product;
-    friend bool operator==(const ProductLoc&, const ProductLoc&) = default;
+/// A node in the path trie.
+struct HierNode {
+    std::string name;                  ///< this node's path component (root: "")
+    bool product{false};               ///< true if a stored object lives at this path
+    std::vector<HierNode> children;    ///< child nodes, sorted by name (lexicographic)
+    friend bool operator==(const HierNode&, const HierNode&) = default;
 };
 
-/// A cell in the hierarchy: its layer/number, the products stored directly at
-/// it, and its child cells (the next layer).  Children are kept sorted by
-/// number (numeric, not lexicographic).
-struct HierCell {
-    std::string layer;
-    std::int64_t number{0};
-    std::vector<ProductLoc> products;
-    std::vector<HierCell> children;
-    friend bool operator==(const HierCell&, const HierCell&) = default;
-};
-
-/// The whole-file descriptor.
+/// The whole-file descriptor (rooted trie).
 struct Hierarchy {
-    std::vector<std::string> layer_names;     ///< layer name at each depth (root->leaf)
-    std::vector<ProductLoc> root_products;    ///< products at the job root (empty cell path)
-    std::vector<HierCell> cells;              ///< top-level cells, sorted by number
+    HierNode root;   ///< the root group, name == ""
 
-    /// Build a descriptor from a flat list of stored addresses.  Cells are
-    /// matched by (layer, number); children are sorted numerically.  Throws
-    /// std::invalid_argument if two addresses disagree on the layer name at a
-    /// given depth.
+    /// Build the trie from a list of stored object addresses.  Each address'
+    /// path is split into components; the leaf node is marked as a product.
+    /// Children are sorted lexicographically by name.
     static Hierarchy from_addresses(const std::vector<Address>& addresses);
+
+    /// All product paths in the trie, in lexicographic (sorted-DFS) order.
+    std::vector<std::string> product_paths() const;
 
     friend bool operator==(const Hierarchy&, const Hierarchy&) = default;
 };

@@ -60,87 +60,29 @@ std::string path_unescape(const std::string& component)
     return out;
 }
 
-Address::Address(std::vector<Cell> cells, std::string creator, std::string product)
-  : m_cells(std::move(cells)), m_creator(std::move(creator)), m_product(std::move(product))
+Address::Address(const std::vector<std::string>& components)
 {
+    for (const auto& c : components) {
+        m_path.push_back('/');
+        m_path += path_escape(c);
+    }
+    if (m_path.empty()) m_path.push_back('/');
 }
 
-Address& Address::push(std::string layer, std::int64_t number)
+Address::Address(std::string path) : m_path(std::move(path))
 {
-    m_cells.push_back(Cell{std::move(layer), number});
-    return *this;
+    if (m_path.empty()) {
+        m_path = "/";
+    } else if (m_path.front() != '/') {
+        m_path.insert(m_path.begin(), '/');
+    }
 }
 
 std::string Address::group_path() const
 {
-    std::string p;
-    for (const auto& cell : m_cells) {
-        p.push_back('/');
-        p += path_escape(cell.layer);
-        p.push_back('/');
-        p += std::to_string(cell.number);
-    }
-    if (p.empty()) p.push_back('/');   // job root
-    return p;
-}
-
-std::string Address::path() const
-{
-    std::string p;
-    for (const auto& cell : m_cells) {
-        p.push_back('/');
-        p += path_escape(cell.layer);
-        p.push_back('/');
-        p += std::to_string(cell.number);
-    }
-    p.push_back('/');
-    p += path_escape(m_creator);
-    p.push_back('/');
-    p += path_escape(m_product);
-    return p;
-}
-
-Address Address::from_path(const std::string& path)
-{
-    if (path.empty() || path.front() != '/') {
-        throw std::invalid_argument("Address::from_path: must start with '/': '" + path + "'");
-    }
-    // Split on '/' dropping the leading empty token.
-    std::vector<std::string> parts;
-    std::size_t start = 1;
-    while (start <= path.size()) {
-        std::size_t slash = path.find('/', start);
-        if (slash == std::string::npos) {
-            parts.push_back(path.substr(start));
-            break;
-        }
-        parts.push_back(path.substr(start, slash - start));
-        start = slash + 1;
-    }
-    // Need at least creator + product; cell part must be even.
-    if (parts.size() < 2) {
-        throw std::invalid_argument("Address::from_path: need creator and product: '" + path + "'");
-    }
-    const std::size_t ncells = parts.size() - 2;
-    if (ncells % 2 != 0) {
-        throw std::invalid_argument("Address::from_path: cell components not paired: '" + path + "'");
-    }
-    Address addr;
-    for (std::size_t i = 0; i < ncells; i += 2) {
-        const std::string layer = path_unescape(parts[i]);
-        std::int64_t number = 0;
-        try {
-            std::size_t consumed = 0;
-            number = std::stoll(parts[i + 1], &consumed);
-            if (consumed != parts[i + 1].size()) throw std::invalid_argument("trailing");
-        } catch (const std::exception&) {
-            throw std::invalid_argument("Address::from_path: bad cell number '" + parts[i + 1] + "'");
-        }
-        addr.push(layer, number);
-    }
-    addr.set_creator(path_unescape(parts[parts.size() - 2]));
-    addr.set_product(path_unescape(parts[parts.size() - 1]));
-    return addr;
+    const std::size_t slash = m_path.find_last_of('/');
+    if (slash == 0 || slash == std::string::npos) return "/";
+    return m_path.substr(0, slash);
 }
 
 }  // namespace arrow_hdf

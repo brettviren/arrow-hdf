@@ -1,13 +1,13 @@
-// Unit tests for arrow_hdf::Address and path escaping (ddm-c3s.1, item 1).
+// Unit tests for arrow_hdf::Address (generic flat path) and path escaping.
 
 #include "arrow_hdf/Address.h"
 
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using arrow_hdf::Address;
-using arrow_hdf::Cell;
 using arrow_hdf::path_escape;
 using arrow_hdf::path_unescape;
 
@@ -27,63 +27,58 @@ int main()
         check(esc.find('/') == std::string::npos, "escaped has no '/': " + s);
         check(path_unescape(esc) == s, "escape round-trip: " + s);
     }
-    // NUL byte
     {
         std::string s("a\0b", 3);
-        std::string esc = path_escape(s);
-        check(esc == "a%00b", "NUL escaped");
-        check(path_unescape(esc) == s, "NUL round-trip");
+        check(path_escape(s) == "a%00b", "NUL escaped");
+        check(path_unescape("a%00b") == s, "NUL round-trip");
     }
-    // malformed escapes throw
     try { path_unescape("bad%"); check(false, "truncated escape should throw"); }
     catch (const std::invalid_argument&) {}
     try { path_unescape("bad%ZZ"); check(false, "non-hex escape should throw"); }
     catch (const std::invalid_argument&) {}
 
-    // --- path construction ---
+    // --- Address from components: each escaped, joined with '/' ---
     {
-        Address a;
-        a.push("run", 3).push("event", 12);
-        a.set_creator("sigproc");
-        a.set_product("frame");
-        check(a.path() == "/run/3/event/12/sigproc/frame", "path build: got " + a.path());
-        check(a.group_path() == "/run/3/event/12", "group_path: got " + a.group_path());
+        Address a(std::vector<std::string>{"run", "3", "event", "12", "sigproc", "frame"});
+        check(a.path() == "/run/3/event/12/sigproc/frame", "components path: " + a.path());
+        check(a.group_path() == "/run/3/event/12/sigproc", "group_path (parent): " + a.group_path());
     }
-    // job-root address (no cells)
+    // empty component list -> root
     {
-        Address a({}, "job", "summary");
-        check(a.path() == "/job/summary", "root path: got " + a.path());
-        check(a.group_path() == "/", "root group_path: got " + a.group_path());
+        Address a(std::vector<std::string>{});
+        check(a.path() == "/", "empty -> root: " + a.path());
+        check(a.group_path() == "/", "root group_path: " + a.group_path());
+    }
+    // single component
+    {
+        Address a(std::vector<std::string>{"only"});
+        check(a.path() == "/only", "single path");
+        check(a.group_path() == "/", "single group_path -> root");
     }
     // components needing escaping
     {
-        Address a;
-        a.push("a/b", 5);
-        a.set_creator("cr e");
-        a.set_product("p/q");
-        check(a.path() == "/a%2Fb/5/cr%20e/p%2Fq", "escaped path: got " + a.path());
+        Address a(std::vector<std::string>{"a/b", "cr e"});
+        check(a.path() == "/a%2Fb/cr%20e", "escaped components: " + a.path());
     }
 
-    // --- from_path is the inverse of path() ---
-    for (const Address& a : {
-             Address(std::vector<Cell>{{"run", 3}, {"event", 12}}, "sigproc", "frame"),
-             Address({}, "job", "summary"),
-             Address(std::vector<Cell>{{"a/b", 5}}, "cr e", "p/q"),
-             Address(std::vector<Cell>{{"run", 1000000000000LL}}, "c", "p"),
-         }) {
-        Address back = Address::from_path(a.path());
-        check(back == a, "from_path round-trip for " + a.path());
+    // --- Address from a verbatim path string ---
+    {
+        Address a(std::string("/run/3/x"));
+        check(a.path() == "/run/3/x", "verbatim path");
+        check(a.group_path() == "/run/3", "verbatim group_path");
+    }
+    {
+        Address a(std::string("a/b"));          // missing leading slash -> normalized
+        check(a.path() == "/a/b", "normalized leading slash: " + a.path());
+    }
+    {
+        Address a(std::string(""));             // empty -> root
+        check(a.path() == "/", "empty string -> root");
     }
 
-    // --- from_path error cases ---
-    try { Address::from_path("no-leading-slash"); check(false, "missing leading / should throw"); }
-    catch (const std::invalid_argument&) {}
-    try { Address::from_path("/onlyone"); check(false, "need creator+product should throw"); }
-    catch (const std::invalid_argument&) {}
-    try { Address::from_path("/run/3/event/creator/product"); check(false, "unpaired cells should throw"); }
-    catch (const std::invalid_argument&) {}
-    try { Address::from_path("/run/notanum/creator/product"); check(false, "bad number should throw"); }
-    catch (const std::invalid_argument&) {}
+    // --- equality ---
+    check(Address(std::vector<std::string>{"a", "b"}) == Address(std::string("/a/b")),
+          "component and verbatim addresses compare equal");
 
     if (fails) { std::cerr << fails << " failures\n"; return 1; }
     std::cout << "address OK\n";

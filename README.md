@@ -10,13 +10,14 @@ neutral `Address` type). It does **not** depend on Phlex or Wire-Cell Toolkit.
 
 ## What it provides
 
-- A Phlex-neutral `Address` (`arrow_hdf/Address.h`): a sequence of
-  `(layer, number)` cells plus creator and product names, mapping to a file path
-  like `/run/3/event/12/<creator>/<product>`. Includes reversible path-component
-  escaping.
-- A file-hierarchy descriptor (`arrow_hdf/Hierarchy.h`): the ordered layer names
-  and the numeric-sorted cell tree with per-cell product locations, built from
-  the addresses found in a file. Consumed by the Phlex read side.
+- A generic `Address` (`arrow_hdf/Address.h`): a `/`-delimited path built from a
+  list of components (each escaped to a safe link name) or from a verbatim path
+  string. No domain structure is baked in — a caller maps richer concepts (e.g.
+  Phlex `(layer, number)` cells + creator/product) onto the components itself.
+  Includes reversible path-component escaping.
+- A file-hierarchy descriptor (`arrow_hdf/Hierarchy.h`): a generic trie of path
+  components (lexicographically sorted) marking which paths hold a table, built
+  from the addresses found in a file by `scan()`.
 - `Hdf5File` (`arrow_hdf/Hdf5File.h`): `write(arrow::Table, Address)`,
   `read(Address) → arrow::Table`, and a file `scan() → Hierarchy`, implemented
   with the raw HDF5 C API. Per-column typed datasets (rectangular where the

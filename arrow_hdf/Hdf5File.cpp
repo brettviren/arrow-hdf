@@ -708,7 +708,7 @@ arrow::Result<Hierarchy> Hdf5File::scan()
         return io("H5Ovisit");
     std::vector<Address> addrs;
     addrs.reserve(st.product_paths.size());
-    for (const auto& p : st.product_paths) addrs.push_back(Address::from_path(p));
+    for (const auto& p : st.product_paths) addrs.push_back(Address(p));
     return Hierarchy::from_addresses(addrs);
 }
 
