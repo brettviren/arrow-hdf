@@ -10,12 +10,12 @@ neutral `Address` type). It does **not** depend on Phlex or Wire-Cell Toolkit.
 
 ## What it provides
 
-- A generic `Address` (`arrow_hdf/Address.h`): a `/`-delimited path built from a
+- A generic `Address` (`arrow_hdf/Address.hpp`): a `/`-delimited path built from a
   list of components (each escaped to a safe link name) or from a verbatim path
   string. No domain structure is baked in — a caller maps richer concepts (e.g.
   Phlex `(layer, number)` cells + creator/product) onto the components itself.
   Includes reversible path-component escaping.
-- A file-hierarchy descriptor (`arrow_hdf/Hierarchy.h`): a generic trie of path
+- A file-hierarchy descriptor (`arrow_hdf/Hierarchy.hpp`): a generic trie of path
   components (lexicographically sorted) marking which paths hold a table, built
   from the addresses found in a file by `scan()`.
 - `Hdf5File` (`arrow_hdf/Hdf5File.h`): `write(arrow::Table, Address)`,
