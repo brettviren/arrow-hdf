@@ -112,6 +112,30 @@ arrow::Result<std::int64_t> read_int64_attr(hid_t loc, const std::string& name)
     return v;
 }
 
+// Read a scalar variable-length string attribute (written by write_string_attr).
+arrow::Result<std::string> read_string_attr(hid_t loc, const std::string& name)
+{
+    Hid attr(H5Aopen(loc, name.c_str(), H5P_DEFAULT), H5Aclose);
+    if (!attr.ok()) return io("H5Aopen " + name);
+    Hid st(H5Tcopy(H5T_C_S1), H5Tclose);
+    H5Tset_size(st, H5T_VARIABLE);
+    H5Tset_cset(st, H5T_CSET_UTF8);
+    char* rdata = nullptr;
+    if (H5Aread(attr, st, &rdata) < 0) return io("H5Aread " + name);
+    std::string out(rdata ? rdata : "");
+    Hid space(H5Aget_space(attr), H5Sclose);
+    H5Treclaim(st, space, H5P_DEFAULT, &rdata);  // free the vlen buffer H5 allocated
+    return out;
+}
+
+// Collect the names of the direct child links of a group.
+struct ChildNames { std::vector<std::string> names; };
+herr_t collect_child_cb(hid_t /*grp*/, const char* name, const H5L_info2_t* /*info*/, void* op)
+{
+    static_cast<ChildNames*>(op)->names.emplace_back(name);
+    return 0;
+}
+
 // vlen UTF-8 strings (one per row); nulls stored as "" + validity dataset.
 arrow::Status write_vlen_strings(hid_t grp, const std::string& name,
                                  const std::vector<std::string>& vals)
@@ -705,6 +729,34 @@ arrow::Result<std::shared_ptr<arrow::Table>> Hdf5File::read(const Address& addr)
         columns.push_back(arr);
     }
     return arrow::Table::Make(schema, columns, nrows);
+}
+
+arrow::Result<NamedTables> Hdf5File::read_tables(const Address& base)
+{
+    if (m_file < 0) return io("read_tables: file not open");
+    Hid grp(H5Gopen2(m_file, base.path().c_str(), H5P_DEFAULT), H5Gclose);
+    if (!grp.ok()) return io("open base group " + base.path());
+
+    NamedTables out;
+    // Optional type label on the base group.
+    if (H5Aexists(grp, "arrow.group.type") > 0) {
+        ARROW_ASSIGN_OR_RAISE(out.type_label, read_string_attr(grp, "arrow.group.type"));
+    }
+
+    // Each direct child group that holds a schema dataset is a member table.
+    ChildNames kids;
+    if (H5Literate2(grp, H5_INDEX_NAME, H5_ITER_NATIVE, nullptr, collect_child_cb, &kids) < 0) {
+        return io("H5Literate2 " + base.path());
+    }
+    for (const auto& child : kids.names) {
+        const std::string child_path = base.path() + "/" + child;
+        Hid cgrp(H5Gopen2(m_file, child_path.c_str(), H5P_DEFAULT), H5Gclose);
+        if (!cgrp.ok()) continue;  // not a group
+        if (H5Lexists(cgrp, kSchemaDataset, H5P_DEFAULT) <= 0) continue;  // not a table group
+        ARROW_ASSIGN_OR_RAISE(auto table, read(Address(child_path)));
+        out.tables.emplace(path_unescape(child), std::move(table));
+    }
+    return out;
 }
 
 namespace {

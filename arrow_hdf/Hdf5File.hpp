@@ -19,6 +19,13 @@
 
 namespace arrow_hdf {
 
+/// A named group of tables plus an optional type label — the value returned by
+/// read_tables() (the inverse of write_tables()).
+struct NamedTables {
+    std::string type_label;
+    std::map<std::string, std::shared_ptr<arrow::Table>> tables;
+};
+
 /// An open HDF5 file that stores Arrow tables at structured addresses.
 ///
 /// Thread-safety: this class does NO internal locking.  libhdf5 is not
@@ -53,6 +60,13 @@ class Hdf5File {
 
     /// Read the table previously written at the address.
     arrow::Result<std::shared_ptr<arrow::Table>> read(const Address& addr);
+
+    /// The inverse of write_tables: read every member table group directly
+    /// under `base` (each child group holding an Arrow table), keyed by its
+    /// (path-unescaped) member name, plus the `base` group's `type_label`
+    /// attribute ("" when absent).  arrow-hdf attaches no meaning to the names
+    /// or the label.
+    arrow::Result<NamedTables> read_tables(const Address& base);
 
     /// Enumerate all stored products into a hierarchy descriptor.
     arrow::Result<Hierarchy> scan();

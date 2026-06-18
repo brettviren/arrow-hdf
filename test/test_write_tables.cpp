@@ -44,6 +44,20 @@ int main()
               "/run/1/sim/frame/frame_tags", "/run/1/sim/frame/traces"},
           "scan finds both member tables");
 
+    // read_tables: inverse of write_tables — recover the type label + members.
+    auto nt = f.read_tables(base);
+    check(nt.ok(), "read_tables ok");
+    if (nt.ok()) {
+        const auto& g = nt.ValueOrDie();
+        check(g.type_label == "wc.frame", "read_tables recovers type label");
+        check(g.tables.size() == 2 && g.tables.count("traces") && g.tables.count("frame_tags"),
+              "read_tables recovers member names");
+        check(g.tables.count("traces") && t1->Equals(*g.tables.at("traces")),
+              "read_tables 'traces' equals original");
+        check(g.tables.count("frame_tags") && t2->Equals(*g.tables.at("frame_tags")),
+              "read_tables 'frame_tags' equals original");
+    }
+
     if (fails) return 1;
     std::cout << "write_tables OK\n";
     return 0;
